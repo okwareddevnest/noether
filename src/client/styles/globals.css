@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-white;
+  }
+}
+
+@layer components {
+  .warning-glyph {
+    @apply bg-warning w-4 h-4 rounded-full;
+  }
+}
+
+/* Monaco Editor Overrides */
+.monaco-editor .margin {
+  @apply bg-secondary;
+}
+
+.monaco-editor .monaco-scrollable-element {
+  @apply bg-secondary-dark;
+}
+
+/* Knowledge Graph Customizations */
+.knowledge-graph-container {
+  @apply w-full h-full relative;
+}
+
+.graph-legend {
+  @apply absolute top-4 right-4 bg-secondary-light p-4 rounded-lg shadow-lg;
+}
+
+.legend-item {
+  @apply flex items-center mb-2 text-sm text-gray-300;
+} 
