@@ -70,8 +70,10 @@ export default function KnowledgeGraph({
 
   const calculateNodeValue = (node: any) => {
     const baseSize = config.graph.defaultNodeSize;
-    const difficultyFactor = node.difficulty ? node.difficulty / 5 : 1;
-    return baseSize * difficultyFactor;
+    const difficulty = typeof node.difficulty === 'bigint' 
+      ? Number(node.difficulty)
+      : (typeof node.difficulty === 'number' ? node.difficulty : 1);
+    return baseSize * (difficulty / 5);
   };
 
   const getNodeColor = (type: string) => {

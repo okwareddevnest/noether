@@ -53,9 +53,9 @@ MERGE (r5:RelationType {name: 'EXTENDS'});
 CREATE (js:Concept {
   id: 'concept-javascript',
   name: 'JavaScript',
-  description: 'A high-level, interpreted programming language that conforms to the ECMAScript specification.',
+  description: 'A high-level, interpreted programming language that is one of the core technologies of the web.',
   type: 'LANGUAGE',
-  difficulty: 1
+  difficulty: 2
 });
 
 CREATE (ts:Concept {
@@ -109,4 +109,46 @@ CREATE (r:Resource {
 });
 
 // Link resource to concept
-CREATE (hooks)-[:HAS_RESOURCE]->(r); 
+CREATE (hooks)-[:HAS_RESOURCE]->(r);
+
+// Additional Core Concepts
+CREATE (node:Concept {
+  id: 'concept-nodejs',
+  name: 'Node.js',
+  description: 'A JavaScript runtime built on Chrome\'s V8 JavaScript engine.',
+  type: 'FRAMEWORK',
+  difficulty: 3
+});
+
+CREATE (npm:Concept {
+  id: 'concept-npm',
+  name: 'NPM',
+  description: 'Node Package Manager - the default package manager for Node.js.',
+  type: 'TOOL',
+  difficulty: 2
+});
+
+CREATE (webpack:Concept {
+  id: 'concept-webpack',
+  name: 'Webpack',
+  description: 'A static module bundler for modern JavaScript applications.',
+  type: 'TOOL',
+  difficulty: 4
+});
+
+CREATE (redux:Concept {
+  id: 'concept-redux',
+  name: 'Redux',
+  description: 'A predictable state container for JavaScript applications.',
+  type: 'FRAMEWORK',
+  difficulty: 4
+});
+
+// Relationships
+CREATE (ts)-[:BASED_ON]->(js)
+CREATE (node)-[:RUNS]->(js)
+CREATE (npm)-[:PART_OF]->(node)
+CREATE (webpack)-[:USES]->(node)
+CREATE (redux)-[:WORKS_WITH]->(react)
+CREATE (hooks)-[:PART_OF]->(react)
+CREATE (react)-[:USES]->(js); 

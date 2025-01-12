@@ -76,7 +76,15 @@ export class Neo4jService {
       );
       
       const record = result.records[0];
-      const nodes = record.get('nodes').map((node: any) => node.properties);
+      const nodes = record.get('nodes').map((node: any) => {
+        const properties = { ...node.properties };
+        // Convert any BigInt properties to numbers
+        if (typeof properties.difficulty === 'bigint') {
+          properties.difficulty = Number(properties.difficulty);
+        }
+        return properties;
+      });
+      
       const relationships = record.get('relationships').map((rel: any) => ({
         startNode: rel.startNodeElementId,
         endNode: rel.endNodeElementId,
