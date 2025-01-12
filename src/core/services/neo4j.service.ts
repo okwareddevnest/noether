@@ -1,11 +1,11 @@
-import neo4j, { Driver, Session } from 'neo4j-driver';
-import { Concept, CodeExample, Relationship } from '../knowledge-graph/types';
+import { driver as neo4jDriver, auth, Driver, Session, QueryResult } from 'neo4j-driver';
+import { Concept, CodeExample, Relationship } from '../knowledge-graph/types.js';
 
 export class Neo4jService {
   private driver: Driver;
 
   constructor(uri: string, username: string, password: string) {
-    this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
+    this.driver = neo4jDriver(uri, auth.basic(username, password));
   }
 
   async verifyConnection(): Promise<boolean> {
@@ -16,6 +16,15 @@ export class Neo4jService {
     } catch (error) {
       console.error('Neo4j connection error:', error);
       return false;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async executeQuery(query: string, params: Record<string, any> = {}): Promise<QueryResult> {
+    const session = this.driver.session();
+    try {
+      return await session.run(query, params);
     } finally {
       await session.close();
     }

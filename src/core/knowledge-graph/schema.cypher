@@ -91,24 +91,7 @@ CREATE (hooks)-[:USES]->(ts);
 // Create example
 CREATE (e:Example {
   id: 'example-react-hooks-1',
-  code: `import React, { useState, useEffect } from 'react';
-
-function Counter() {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    document.title = \`Count: \${count}\`;
-  }, [count]);
-
-  return (
-    <div>
-      <p>Count: {count}</p>
-      <button onClick={() => setCount(count + 1)}>
-        Increment
-      </button>
-    </div>
-  );
-}`,
+  code: 'import React, { useState, useEffect } from "react";\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n\n  useEffect(() => {\n    document.title = `Count: ${count}`;\n  }, [count]);\n\n  return (\n    <div>\n      <p>Count: {count}</p>\n      <button onClick={() => setCount(count + 1)}>\n        Increment\n      </button>\n    </div>\n  );\n}',
   explanation: 'A simple counter component demonstrating useState and useEffect hooks.',
   language: 'typescript'
 });

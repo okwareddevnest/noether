@@ -2,10 +2,10 @@ import { ModusClient } from '@hypermode/modus-sdk-as';
 import { Neo4jService } from './neo4j.service';
 
 interface CodeAnalysis {
-  quality: number;
-  suggestions: string[];
-  concepts: string[];
-  potentialIssues: string[];
+    quality: number;
+    suggestions: string[];
+    concepts: string[];
+    potentialIssues: string[];
 }
 
 export class AIService {

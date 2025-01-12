@@ -1,42 +1,99 @@
-import fs from 'fs';
-import path from 'path';
-import neo4j from 'neo4j-driver';
-import { config } from '../src/config.js';
+import { driver, auth } from 'neo4j-driver';
+import { readFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const uri = 'bolt://localhost:7687';
+const username = 'neo4j';
+const password = 'poiuytr098';
+
+function parseStatements(content: string): string[] {
+  const statements: string[] = [];
+  let currentStatement = '';
+  let inString = false;
+  let stringChar = '';
+  let escaped = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    
+    if (escaped) {
+      currentStatement += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      currentStatement += char;
+      escaped = true;
+      continue;
+    }
+
+    if ((char === '"' || char === "'") && !inString) {
+      inString = true;
+      stringChar = char;
+      currentStatement += char;
+      continue;
+    }
+
+    if (char === stringChar && inString) {
+      inString = false;
+      currentStatement += char;
+      continue;
+    }
+
+    if (char === ';' && !inString) {
+      if (currentStatement.trim()) {
+        statements.push(currentStatement.trim());
+      }
+      currentStatement = '';
+      continue;
+    }
+
+    currentStatement += char;
+  }
+
+  if (currentStatement.trim()) {
+    statements.push(currentStatement.trim());
+  }
+
+  return statements.filter(s => !s.startsWith('//'));
+}
 
 async function initializeDatabase() {
-  const driver = neo4j.driver(
-    config.neo4j.uri,
-    neo4j.auth.basic(config.neo4j.username, config.neo4j.password)
-  );
-
-  const session = driver.session();
+  console.log('Starting database initialization...');
+  
+  console.log('Creating Neo4j driver...');
+  const neo4jDriver = driver(uri, auth.basic(username, password));
+  const session = neo4jDriver.session();
 
   try {
-    console.log('Connecting to Neo4j database...');
+    console.log('Testing connection...');
     await session.run('RETURN 1');
     console.log('Successfully connected to Neo4j');
 
     console.log('Reading schema file...');
-    const schemaPath = path.join(__dirname, '../src/core/knowledge-graph/schema.cypher');
-    const schemaScript = fs.readFileSync(schemaPath, 'utf-8');
+    const schemaPath = resolve(__dirname, '../src/core/knowledge-graph/schema.cypher');
+    const schemaContent = readFileSync(schemaPath, 'utf-8');
 
-    console.log('Executing schema initialization...');
-    const statements = schemaScript
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+    console.log('Executing schema...');
+    const statements = parseStatements(schemaContent);
 
     for (const statement of statements) {
       try {
+        console.log('Executing statement:', statement.substring(0, 100) + '...');
         await session.run(statement);
-        console.log('Executed:', statement.slice(0, 50) + '...');
+        console.log('Statement executed successfully');
       } catch (error) {
         console.error('Error executing statement:', statement);
-        console.error('Error details:', error);
+        throw error;
       }
     }
 
-    console.log('Database initialization completed successfully');
+    console.log('Schema executed successfully');
 
     // Verify the initialization
     const verificationQueries = [
@@ -53,29 +110,24 @@ async function initializeDatabase() {
         name: 'Resources'
       },
       {
-        query: 'MATCH ()-[r:REQUIRES]->() RETURN count(r) as count',
+        query: 'MATCH ()-[r]->() RETURN count(r) as count',
         name: 'Relationships'
       }
     ];
 
-    console.log('\nVerifying initialization:');
+    console.log('\nVerifying initialization...');
     for (const { query, name } of verificationQueries) {
       const result = await session.run(query);
-      const count = result.records[0].get('count').toNumber();
-      console.log(`${name}: ${count}`);
+      console.log(`${name} count:`, result.records[0].get('count').toNumber());
     }
 
   } catch (error) {
-    console.error('Error initializing database:', error);
+    console.error('Error during initialization:', error);
     process.exit(1);
   } finally {
     await session.close();
-    await driver.close();
+    await neo4jDriver.close();
   }
 }
 
-// Run the initialization
-initializeDatabase().catch(error => {
-  console.error('Unhandled error:', error);
-  process.exit(1);
-}); 
+initializeDatabase(); 
