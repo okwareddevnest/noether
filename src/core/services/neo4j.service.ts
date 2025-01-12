@@ -5,7 +5,9 @@ export class Neo4jService {
   private driver: Driver;
 
   constructor(uri: string, username: string, password: string) {
-    this.driver = neo4jDriver(uri, auth.basic(username, password));
+    this.driver = neo4jDriver(uri, auth.basic(username, password), {
+      encrypted: false
+    });
   }
 
   async verifyConnection(): Promise<boolean> {
