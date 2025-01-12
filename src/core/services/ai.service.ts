@@ -1,118 +1,147 @@
-import OpenAI from 'openai';
-import { CodeExample, Concept, UserKnowledge } from '../knowledge-graph/types';
+import { ModusClient } from '@hypermode/modus-sdk-as';
+import { Neo4jService } from './neo4j.service';
+
+interface CodeAnalysis {
+  quality: number;
+  suggestions: string[];
+  concepts: string[];
+  potentialIssues: string[];
+}
 
 export class AIService {
-  private openai: OpenAI;
+  private modusClient: ModusClient;
+  private neo4jService: Neo4jService;
 
-  constructor(apiKey: string) {
-    this.openai = new OpenAI({ apiKey });
+  constructor(modusApiKey: string, neo4jService: Neo4jService) {
+    this.modusClient = new ModusClient(modusApiKey);
+    this.neo4jService = neo4jService;
   }
 
-  async analyzeCode(code: string, language: string): Promise<{
-    quality: number;
-    suggestions: string[];
-    concepts: string[];
-    potentialIssues: string[];
-  }> {
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a code analysis expert. Analyze the following ${language} code for quality, suggestions, related concepts, and potential issues. Provide a structured response.`
-        },
-        {
-          role: 'user',
-          content: code
-        }
-      ],
-      response_format: { type: 'json_object' }
-    });
+  async analyzeCode(code: string, language: string): Promise<CodeAnalysis> {
+    try {
+      // Get relevant concepts from Neo4j for context
+      const graphContext = await this.getGraphContext();
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+      // Analyze code using Llama 3.1 through Modus
+      const analysis = await this.modusClient.analyze({
+        code,
+        language,
+        context: graphContext,
+        model: 'llama-3.1',
+        options: {
+          temperature: 0.3,
+          max_tokens: 1000
+        }
+      });
+
+      // Extract and structure the analysis results
+      const result: CodeAnalysis = {
+        quality: this.calculateCodeQuality(analysis),
+        suggestions: this.extractSuggestions(analysis),
+        concepts: this.extractConcepts(analysis),
+        potentialIssues: this.extractIssues(analysis)
+      };
+
+      // Update knowledge graph with new insights
+      await this.updateKnowledgeGraph(result.concepts, code);
+
+      return result;
+    } catch (error) {
+      console.error('Error analyzing code:', error);
+      throw error;
+    }
   }
 
-  async generateExercise(concept: Concept, userKnowledge: UserKnowledge): Promise<CodeExample> {
-    const difficulty = this.calculateAppropriateExerciseDifficulty(userKnowledge);
-    
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: `Generate a coding exercise for the concept "${concept.name}" at difficulty level ${difficulty}. Include a clear problem statement, starter code, and explanation.`
-        }
-      ],
-      response_format: { type: 'json_object' }
+  private async getGraphContext(): Promise<string> {
+    const graphData = await this.neo4jService.getGraphData();
+    return JSON.stringify({
+      nodes: graphData.nodes,
+      relationships: graphData.relationships
     });
+  }
 
-    const exercise = JSON.parse(response.choices[0].message.content || '{}');
-    return {
-      id: `exercise-${Date.now()}`,
-      title: exercise.title,
-      code: exercise.code,
-      explanation: exercise.explanation,
-      language: exercise.language,
-      tags: [concept.name, ...exercise.tags]
+  private calculateCodeQuality(analysis: any): number {
+    // Implement quality scoring based on various metrics
+    const metrics = {
+      complexity: analysis.complexity || 0,
+      maintainability: analysis.maintainability || 0,
+      readability: analysis.readability || 0,
+      bestPractices: analysis.bestPractices || 0
     };
-  }
 
-  async evaluateExerciseAttempt(
-    exercise: CodeExample,
-    attemptCode: string
-  ): Promise<{
-    score: number;
-    feedback: string;
-    improvements: string[];
-  }> {
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'Evaluate the following code attempt for the given exercise. Provide a score, feedback, and suggested improvements.'
-        },
-        {
-          role: 'user',
-          content: JSON.stringify({
-            exercise,
-            attempt: attemptCode
-          })
-        }
-      ],
-      response_format: { type: 'json_object' }
-    });
-
-    return JSON.parse(response.choices[0].message.content || '{}');
-  }
-
-  async suggestLearningResources(
-    concept: Concept,
-    userKnowledge: UserKnowledge
-  ): Promise<string[]> {
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: `Suggest learning resources for the concept "${concept.name}" based on the user's current proficiency level of ${userKnowledge.proficiency}.`
-        }
-      ]
-    });
-
-    return JSON.parse(response.choices[0].message.content || '[]');
-  }
-
-  private calculateAppropriateExerciseDifficulty(userKnowledge: UserKnowledge): number {
-    // Implement adaptive difficulty scaling based on user's proficiency
-    const baseDifficulty = 1;
-    const proficiencyFactor = 0.5;
-    return Math.min(
-      Math.max(
-        baseDifficulty + userKnowledge.proficiency * proficiencyFactor,
-        1
-      ),
-      10
+    return Math.round(
+      (metrics.complexity + metrics.maintainability + metrics.readability + metrics.bestPractices) / 4 * 10
     );
+  }
+
+  private extractSuggestions(analysis: any): string[] {
+    return analysis.suggestions || [];
+  }
+
+  private extractConcepts(analysis: any): string[] {
+    return analysis.concepts || [];
+  }
+
+  private extractIssues(analysis: any): string[] {
+    return analysis.issues || [];
+  }
+
+  private async updateKnowledgeGraph(concepts: string[], code: string): Promise<void> {
+    for (const concept of concepts) {
+      // Add new concepts to the knowledge graph
+      await this.neo4jService.addConcept({
+        id: `concept-${Date.now()}-${concept.toLowerCase().replace(/\s+/g, '-')}`,
+        name: concept,
+        description: '', // Will be populated by another AI call
+        type: 'PATTERN',
+        difficulty: 1,
+        prerequisites: [],
+        relatedConcepts: [],
+        resources: [],
+        examples: [{
+          id: `example-${Date.now()}`,
+          code,
+          explanation: '', // Will be populated by another AI call
+          language: 'typescript'
+        }]
+      });
+    }
+  }
+
+  async getCodeCompletion(code: string, position: number): Promise<string> {
+    try {
+      const completion = await this.modusClient.complete({
+        code,
+        position,
+        model: 'llama-3.1',
+        options: {
+          temperature: 0.3,
+          max_tokens: 100
+        }
+      });
+
+      return completion.text;
+    } catch (error) {
+      console.error('Error getting code completion:', error);
+      throw error;
+    }
+  }
+
+  async getCodeExplanation(code: string): Promise<string> {
+    try {
+      const explanation = await this.modusClient.explain({
+        code,
+        model: 'llama-3.1',
+        options: {
+          temperature: 0.5,
+          max_tokens: 500
+        }
+      });
+
+      return explanation.text;
+    } catch (error) {
+      console.error('Error getting code explanation:', error);
+      throw error;
+    }
   }
 } 

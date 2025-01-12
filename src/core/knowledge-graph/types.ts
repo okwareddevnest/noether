@@ -10,57 +10,50 @@ export interface Concept {
   examples: CodeExample[];
 }
 
-export enum ConceptType {
-  Language = 'LANGUAGE',
-  Framework = 'FRAMEWORK',
-  Pattern = 'PATTERN',
-  Algorithm = 'ALGORITHM',
-  DataStructure = 'DATA_STRUCTURE',
-  BestPractice = 'BEST_PRACTICE'
-}
+export type ConceptType =
+  | 'LANGUAGE'
+  | 'FRAMEWORK'
+  | 'PATTERN'
+  | 'ALGORITHM'
+  | 'DATA_STRUCTURE'
+  | 'BEST_PRACTICE';
 
 export interface Resource {
   id: string;
   title: string;
-  type: ResourceType;
   url: string;
-  effectiveness: number;
+  type: ResourceType;
   difficulty: number;
-}
-
-export enum ResourceType {
-  Documentation = 'DOCUMENTATION',
-  Tutorial = 'TUTORIAL',
-  Video = 'VIDEO',
-  Article = 'ARTICLE',
-  Exercise = 'EXERCISE'
-}
-
-export interface CodeExample {
-  id: string;
-  title: string;
-  code: string;
-  explanation: string;
-  language: string;
   tags: string[];
 }
 
-export interface UserKnowledge {
-  userId: string;
-  conceptId: string;
-  proficiency: number;
-  lastPracticed: Date;
-  exercises: ExerciseAttempt[];
+export type ResourceType =
+  | 'ARTICLE'
+  | 'VIDEO'
+  | 'DOCUMENTATION'
+  | 'TUTORIAL'
+  | 'EXERCISE';
+
+export interface CodeExample {
+  id: string;
+  code: string;
+  explanation: string;
+  language: string;
 }
 
-export interface ExerciseAttempt {
-  id: string;
-  exerciseId: string;
-  completed: boolean;
-  score: number;
-  timestamp: Date;
-  feedback: string;
+export interface Relationship {
+  source: string;
+  target: string;
+  type: RelationshipType;
+  weight?: number;
 }
+
+export type RelationshipType =
+  | 'REQUIRES'
+  | 'SIMILAR_TO'
+  | 'IMPLEMENTS'
+  | 'USES'
+  | 'EXTENDS';
 
 export interface LearningPath {
   id: string;
@@ -70,4 +63,12 @@ export interface LearningPath {
   progress: number;
   created: Date;
   updated: Date;
+}
+
+export interface UserKnowledge {
+  userId: string;
+  conceptId: string;
+  proficiency: number;
+  lastPracticed: Date;
+  exercises: string[];
 } 

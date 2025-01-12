@@ -1,109 +1,115 @@
-# NOETHER: Neural Orchestration of Evolving Thought Hierarchies through Embedded Relationships
+# NOETHER
 
-NOETHER is an innovative AI-powered code editor and learning system that leverages knowledge graphs to revolutionize how developers learn and write code. The system seamlessly integrates the Modus framework with Neo4j and advanced AI models to create an intelligent, adaptive programming environment.
+NOETHER is an AI-powered code editor and learning system that integrates knowledge graphs, AI, and intuitive learning paths to enhance the developer experience. Built for the Hypermode Knowledge Graph + AI Challenge.
 
 ## Features
 
-### Knowledge Graph Foundation
-- Comprehensive concept mapping
-- Relationship tracking between programming concepts
-- User knowledge state visualization
-- Learning progress tracking
-- Code pattern recognition
-- Resource effectiveness analysis
-
-### AI Integration
-- Real-time code analysis
-- Personalized learning paths
-- Contextual documentation
-- Intelligent issue detection
-- Optimization suggestions
-- Adaptive learning patterns
-- Custom exercise generation
-
-### Smart Editor
-- Concept highlighting
-- Context-aware completions
-- Pattern explanations
-- Refactoring suggestions
-- Proactive bug detection
-- Inline documentation
-- Best practice guidance
+- 🤖 AI-driven real-time code completion and error correction using Llama 3.1
+- 📊 Dynamic knowledge graph visualization using Neo4j
+- 🎓 Personalized learning paths and tutorials
+- 🔍 Context-aware recommendations using GraphRAG
+- 💻 VS Code-like editor experience with Monaco Editor
+- 🚀 Built with Next.js, Node.js, and Neo4j
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
-- Neo4j Database (v4.4 or higher)
-- OpenAI API Key
-- Modus Framework API Key
+- Node.js >= 18
+- Neo4j >= 5.0
+- Modus API Key
 
-## Setup
+## Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/noether.git
-   cd noether
-   ```
+```bash
+git clone https://github.com/yourusername/noether.git
+cd noether
+```
 
 2. Install dependencies:
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
 3. Configure environment variables:
-   - Copy `.env.example` to `.env`
-   - Fill in your API keys and configuration details
+```bash
+cp .env.dev.local.example .env.dev.local
+```
+Edit `.env.dev.local` with your configuration values.
 
-4. Start Neo4j database:
-   - Ensure Neo4j is running and accessible
-   - Create a new database or use existing one
-   - Update connection details in `.env`
+4. Start Neo4j:
+- Install Neo4j Desktop or use Neo4j AuraDB
+- Create a new database
+- Update the Neo4j connection details in `.env.dev.local`
 
-5. Run the development server:
-   ```bash
-   npm run dev
-   ```
+5. Start the development server:
+```bash
+npm run dev
+```
 
 ## Architecture
 
-### Core Components
+### Frontend
+- Next.js for the React framework
+- Monaco Editor for code editing
+- D3.js for knowledge graph visualization
+- React Force Graph for interactive graph rendering
 
-1. Knowledge Graph (Neo4j)
-   - Concept nodes
-   - Relationship edges
-   - User progress tracking
-   - Learning path generation
+### Backend
+- Node.js with Express
+- Neo4j for graph database
+- Modus API for AI integration
+- GraphRAG for context-aware retrieval
 
-2. AI Services
-   - Code analysis
-   - Exercise generation
-   - Learning path optimization
-   - Performance evaluation
+### AI Integration
+- Llama 3.1 through Modus API
+- Real-time code analysis
+- Intelligent code completion
+- Error detection and correction
 
-3. Editor Integration
-   - Monaco Editor
-   - Real-time analysis
-   - Visualization components
-   - Interactive feedback
+### Knowledge Graph
+- Concepts and relationships
+- Code dependencies
+- Learning paths
+- User progress tracking
 
 ## Development
 
-### Building
-
-```bash
-npm run build
+### Project Structure
+```
+noether/
+├── src/
+│   ├── client/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── styles/
+│   ├── core/
+│   │   ├── knowledge-graph/
+│   │   └── services/
+│   └── server/
+├── public/
+├── tests/
+└── docs/
 ```
 
-### Testing
+### Available Scripts
+- `npm run dev` - Start development server
+- `npm run build` - Build production bundle
+- `npm start` - Start production server
+- `npm test` - Run tests
+- `npm run lint` - Run linter
+- `npm run pretty` - Format code
+
+## Testing
 
 ```bash
+# Run all tests
 npm test
-```
 
-### Linting
+# Run specific test suite
+npm test -- path/to/test
 
-```bash
-npm run lint
+# Run tests in watch mode
+npm test -- --watch
 ```
 
 ## Contributing
@@ -120,11 +126,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Built with [Modus Framework](https://modus.io)
-- Powered by [OpenAI](https://openai.com)
-- Graph database by [Neo4j](https://neo4j.com)
-- Editor component by [Monaco Editor](https://microsoft.github.io/monaco-editor/)
-
-## Support
-
-For support, please open an issue in the GitHub repository or contact the development team. 
+- Built for the Hypermode Knowledge Graph + AI Challenge
+- Uses Modus API for AI integration
+- Powered by Neo4j graph database
+- Monaco Editor for code editing
+- D3.js for visualization 

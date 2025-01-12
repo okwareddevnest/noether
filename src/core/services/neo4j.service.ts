@@ -1,5 +1,5 @@
 import neo4j, { Driver, Session } from 'neo4j-driver';
-import { Concept, Resource, UserKnowledge, LearningPath } from '../knowledge-graph/types';
+import { Concept, CodeExample, Relationship } from '../knowledge-graph/types';
 
 export class Neo4jService {
   private driver: Driver;
@@ -9,14 +9,15 @@ export class Neo4jService {
   }
 
   async verifyConnection(): Promise<boolean> {
+    const session = this.driver.session();
     try {
-      const session = this.driver.session();
       await session.run('RETURN 1');
-      session.close();
       return true;
     } catch (error) {
       console.error('Neo4j connection error:', error);
       return false;
+    } finally {
+      await session.close();
     }
   }
 
@@ -36,22 +37,210 @@ export class Neo4jService {
         concept
       );
 
-      // Create relationships for prerequisites and related concepts
-      for (const prereqId of concept.prerequisites) {
+      // Add relationships to prerequisites
+      for (const prereq of concept.prerequisites) {
         await session.run(
           `
-          MATCH (c:Concept {id: $conceptId}), (p:Concept {id: $prereqId})
-          CREATE (p)-[:PREREQUISITE_FOR]->(c)
+          MATCH (c:Concept {id: $conceptId})
+          MATCH (p:Concept {id: $prereqId})
+          CREATE (c)-[:REQUIRES]->(p)
           `,
-          { conceptId: concept.id, prereqId }
+          { conceptId: concept.id, prereqId: prereq }
         );
       }
     } finally {
-      session.close();
+      await session.close();
     }
   }
 
-  async getUserKnowledgeState(userId: string): Promise<UserKnowledge[]> {
+  async getGraphData(): Promise<{ nodes: any[], relationships: any[] }> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        `
+        MATCH (n:Concept)
+        OPTIONAL MATCH (n)-[r]->(m:Concept)
+        RETURN collect(distinct n) as nodes, collect(distinct r) as relationships
+        `
+      );
+      
+      const record = result.records[0];
+      const nodes = record.get('nodes').map((node: any) => node.properties);
+      const relationships = record.get('relationships').map((rel: any) => ({
+        startNode: rel.startNodeElementId,
+        endNode: rel.endNodeElementId,
+        type: rel.type
+      }));
+
+      return { nodes, relationships };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async addCodeExample(conceptId: string, example: CodeExample): Promise<void> {
+    const session = this.driver.session();
+    try {
+      await session.run(
+        `
+        MATCH (c:Concept {id: $conceptId})
+        CREATE (e:Example {
+          id: $exampleId,
+          code: $code,
+          explanation: $explanation,
+          language: $language
+        })
+        CREATE (c)-[:HAS_EXAMPLE]->(e)
+        `,
+        {
+          conceptId,
+          exampleId: example.id,
+          code: example.code,
+          explanation: example.explanation,
+          language: example.language
+        }
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  async getRelatedConcepts(conceptId: string): Promise<Concept[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        `
+        MATCH (c:Concept {id: $conceptId})-[r]-(related:Concept)
+        RETURN related
+        `,
+        { conceptId }
+      );
+      
+      return result.records.map(record => record.get('related').properties as Concept);
+    } finally {
+      await session.close();
+    }
+  }
+
+  async getConceptById(conceptId: string): Promise<Concept | null> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        `
+        MATCH (c:Concept {id: $conceptId})
+        OPTIONAL MATCH (c)-[:HAS_EXAMPLE]->(e:Example)
+        OPTIONAL MATCH (c)-[:HAS_RESOURCE]->(r:Resource)
+        RETURN c, collect(distinct e) as examples, collect(distinct r) as resources
+        `,
+        { conceptId }
+      );
+
+      if (result.records.length === 0) {
+        return null;
+      }
+
+      const record = result.records[0];
+      const concept = record.get('c').properties as Concept;
+      concept.examples = record.get('examples').map((e: any) => e.properties);
+      concept.resources = record.get('resources').map((r: any) => r.properties);
+
+      return concept;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async getUserLearningPaths(userId: string): Promise<LearningPath[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        `
+        MATCH (u:User {id: $userId})-[:HAS_PATH]->(p:LearningPath)
+        OPTIONAL MATCH (p)-[:INCLUDES]->(c:Concept)
+        RETURN p, collect(c.id) as concepts
+        ORDER BY p.created DESC
+        `,
+        { userId }
+      );
+
+      return result.records.map(record => {
+        const path = record.get('p').properties as LearningPath;
+        path.concepts = record.get('concepts');
+        return path;
+      });
+    } finally {
+      await session.close();
+    }
+  }
+
+  async updateLearningPath(path: LearningPath): Promise<void> {
+    const session = this.driver.session();
+    try {
+      await session.run(
+        `
+        MATCH (p:LearningPath {id: $pathId})
+        SET p.currentIndex = $currentIndex,
+            p.progress = $progress,
+            p.updated = $updated
+        `,
+        {
+          pathId: path.id,
+          currentIndex: path.currentIndex,
+          progress: path.progress,
+          updated: new Date().toISOString()
+        }
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  async createLearningPath(userId: string, concepts: string[]): Promise<LearningPath> {
+    const session = this.driver.session();
+    try {
+      const pathId = `path-${Date.now()}`;
+      const now = new Date().toISOString();
+
+      await session.run(
+        `
+        MATCH (u:User {id: $userId})
+        CREATE (p:LearningPath {
+          id: $pathId,
+          currentIndex: 0,
+          progress: 0,
+          created: $created,
+          updated: $updated
+        })
+        CREATE (u)-[:HAS_PATH]->(p)
+        WITH p
+        UNWIND $concepts as conceptId
+        MATCH (c:Concept {id: conceptId})
+        CREATE (p)-[:INCLUDES]->(c)
+        `,
+        {
+          userId,
+          pathId,
+          concepts,
+          created: now,
+          updated: now
+        }
+      );
+
+      return {
+        id: pathId,
+        userId,
+        concepts,
+        currentIndex: 0,
+        progress: 0,
+        created: new Date(now),
+        updated: new Date(now)
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async getUserKnowledge(userId: string): Promise<UserKnowledge[]> {
     const session = this.driver.session();
     try {
       const result = await session.run(
@@ -61,6 +250,7 @@ export class Neo4jService {
         `,
         { userId }
       );
+
       return result.records.map(record => ({
         userId,
         conceptId: record.get('conceptId'),
@@ -69,44 +259,7 @@ export class Neo4jService {
         exercises: []
       }));
     } finally {
-      session.close();
-    }
-  }
-
-  async generateLearningPath(userId: string, goalConceptId: string): Promise<LearningPath> {
-    const session = this.driver.session();
-    try {
-      const result = await session.run(
-        `
-        MATCH (start:Concept {id: $goalConceptId})
-        CALL apoc.path.spanningTree(start, {
-          relationshipFilter: "PREREQUISITE_FOR",
-          minLevel: 1,
-          maxLevel: 5
-        })
-        YIELD path
-        RETURN path
-        `,
-        { goalConceptId }
-      );
-
-      const concepts = result.records
-        .map(record => record.get('path').segments)
-        .flat()
-        .map(segment => segment.start.properties.id)
-        .reverse();
-
-      return {
-        id: `path-${Date.now()}`,
-        userId,
-        concepts,
-        currentIndex: 0,
-        progress: 0,
-        created: new Date(),
-        updated: new Date()
-      };
-    } finally {
-      session.close();
+      await session.close();
     }
   }
 
@@ -128,7 +281,29 @@ export class Neo4jService {
         }
       );
     } finally {
-      session.close();
+      await session.close();
+    }
+  }
+
+  async suggestNextConcepts(userId: string, count: number = 5): Promise<Concept[]> {
+    const session = this.driver.session();
+    try {
+      const result = await session.run(
+        `
+        MATCH (u:User {id: $userId})-[k:KNOWS]->(known:Concept)
+        MATCH (known)-[:REQUIRES]->(next:Concept)
+        WHERE NOT (u)-[:KNOWS]->(next)
+        WITH next, avg(k.proficiency) as avgProficiency
+        ORDER BY avgProficiency DESC
+        LIMIT $count
+        RETURN next
+        `,
+        { userId, count }
+      );
+
+      return result.records.map(record => record.get('next').properties as Concept);
+    } finally {
+      await session.close();
     }
   }
 
