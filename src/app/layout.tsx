@@ -1,18 +1,13 @@
-import type { Metadata, Viewport } from 'next';
+import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import '@/styles/globals.css';
+import './globals.css';
+import { Neo4jProvider } from '@/core/contexts/neo4j-context';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'NOETHER - AI-Powered Code Editor',
-  description: 'An intelligent code editor with integrated knowledge graph and personalized learning paths.',
-  keywords: ['code editor', 'AI', 'knowledge graph', 'learning', 'programming'],
-  authors: [{ name: 'Your Name' }],
-};
-
-export const viewport: Viewport = {
-  themeColor: '#000000',
+  description: 'An AI-powered code editor and learning system that helps you understand and visualize code relationships through dynamic knowledge graphs.',
 };
 
 export default function RootLayout({
@@ -22,10 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-background text-foreground antialiased`}>
-        <div className="flex min-h-screen flex-col">
+      <body className={inter.className}>
+        <Neo4jProvider>
           {children}
-        </div>
+        </Neo4jProvider>
       </body>
     </html>
   );

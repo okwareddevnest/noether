@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Neo4jService } from '@/core/services/neo4j.service';
+import { useNeo4j } from '@/core/contexts/neo4j-context';
 import { config } from '@/config';
 
 const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), {
@@ -15,7 +15,6 @@ const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), {
 });
 
 interface KnowledgeGraphProps {
-  neo4jService: Neo4jService;
   onConceptSelect?: (conceptId: string) => void;
 }
 
@@ -34,13 +33,16 @@ interface GraphData {
 }
 
 export default function KnowledgeGraph({
-  neo4jService,
   onConceptSelect,
 }: KnowledgeGraphProps) {
+  const { neo4jService, loading: serviceLoading, error: serviceError } = useNeo4j();
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const loadGraphData = useCallback(async () => {
+    if (!neo4jService) return;
+
     try {
       setLoading(true);
       const data = await neo4jService.getGraphData();
@@ -53,8 +55,10 @@ export default function KnowledgeGraph({
         links: data.relationships,
       };
       setGraphData(formattedData);
-    } catch (error) {
-      console.error('Error loading graph data:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading graph data:', err);
+      setError(err instanceof Error ? err : new Error('Failed to load graph data'));
     } finally {
       setLoading(false);
     }
@@ -74,10 +78,20 @@ export default function KnowledgeGraph({
     return config.graph.colors[type as keyof typeof config.graph.colors] || '#808080';
   };
 
-  if (loading) {
+  if (serviceLoading || loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-neutral-400">Loading knowledge graph...</div>
+      </div>
+    );
+  }
+
+  if (serviceError || error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-red-400">
+          Error: {(serviceError || error)?.message}
+        </div>
       </div>
     );
   }
