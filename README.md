@@ -21,7 +21,7 @@ NOETHER is an AI-powered code editor and learning system that integrates knowled
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/noether.git
+git clone https://github.com/okwareddevnest/noether.git
 cd noether
 ```
 
